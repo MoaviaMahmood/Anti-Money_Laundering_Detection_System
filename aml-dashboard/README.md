@@ -5,12 +5,6 @@ SENTINEL simulates a bank-grade transaction monitoring interface with live alert
 
 <img width="1587" height="994" alt="Image" src="https://github.com/user-attachments/assets/4c479e47-5486-4fe7-a02f-8eb2dfea51c7" />
 
-<img width="1546" height="970" alt="Image" src="https://github.com/user-attachments/assets/f4b2fa97-6a61-457f-ac0c-dc4aa67249d7" />
-
-<img width="690" height="993" alt="Image" src="https://github.com/user-attachments/assets/eaabc007-fbdd-48c5-98b7-166add1c21c9" />
-
-<img width="838" height="972" alt="Image" src="https://github.com/user-attachments/assets/5694fc87-5461-4556-9146-2b6e43ca084a" />
-
 ## Overview
 
 SENTINEL is a frontend simulation of a hybrid AML transaction monitoring system.
@@ -193,3 +187,10 @@ Transitioning into Machine Learning & Data Engineering
 # License
 
 This project is for academic and demonstration purposes.
+<img width="1587" height="994" alt="Image" src="https://github.com/user-attachments/assets/4c479e47-5486-4fe7-a02f-8eb2dfea51c7" />
+
+<img width="1546" height="970" alt="Image" src="https://github.com/user-attachments/assets/f4b2fa97-6a61-457f-ac0c-dc4aa67249d7" />
+
+<img width="690" height="993" alt="Image" src="https://github.com/user-attachments/assets/eaabc007-fbdd-48c5-98b7-166add1c21c9" />
+
+<img width="838" height="972" alt="Image" src="https://github.com/user-attachments/assets/5694fc87-5461-4556-9146-2b6e43ca084a" />
