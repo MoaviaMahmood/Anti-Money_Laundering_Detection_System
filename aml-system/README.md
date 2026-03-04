@@ -2,20 +2,36 @@
 ``` bash
 aml-system
 │
+├── data-generators/                        ←-- synthetic transaction simulator
+│   ├── aml_synthetic_data_generator.py
+│   ├── README.md
+│   └── .gitignore
+│   
+├── frontend/
+│   ├── scr/
+│   ├── vite.config.ts
+│   ├── README.md
+│   └── .gitignore
+│
 ├── infra
-│   ├── docker-compose.yml            ← all infrastructure services
-│   ├── docker-compose.override.yml   ← local dev overrides   
-│   └── terraform/                    ← for transforming to cloud 
+│   ├── docker-compose.yml            ←-- all infrastructure services
+│   ├── docker-compose.override.yml   ←-- local dev overrides   
+│   └── terraform/                    ←-- for transforming to cloud 
 │   
 ├── ingestion
 │   ├── kafka-configs/
 │   └── debezium-connectors/
 │
+├── ml/
+│   ├── notebooks/
+│   ├── models/
+│   └── feature-store/
+│
 ├── pipelines/
-│   ├── dags/             ← Airflow DAGs
+│   ├── dags/             ←-- Airflow DAGs
 │   ├── flink-jobs/
 │   ├── spark-jobs/
-│   └── dbt/              ← transformations
+│   └── dbt/              ←-- transformations
 │                    
 ├── services/
 │   ├── transaction-service/
@@ -24,15 +40,6 @@ aml-system
 │   ├── alert-service/
 │   └── case-management-api/
 │
-├── ml/
-│   ├── notebooks/
-│   ├── models/
-│   └── feature-store/
-│
-├── frontend/
-│   └── aml-dashboard/
-│
-├── data-generators/          ← synthetic transaction simulator
-│             
+├── README.md            
 └── docs/
 ```
