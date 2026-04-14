@@ -4,3 +4,5 @@ articles/
 *.pdf
 *.pem
 *.csv
+*.drawio
+*.bkp
