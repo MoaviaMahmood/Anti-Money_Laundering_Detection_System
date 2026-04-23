@@ -6,7 +6,7 @@ It creates Customers, Accounts, Transactions, and Alerts datasets and stores the
 <img width="1921" height="1281" alt="Image" src="https://github.com/user-attachments/assets/71ba18c1-c1bf-4020-8050-4a862a21fa0e" />
 <img width="1919" height="971" alt="Image" src="https://github.com/user-attachments/assets/18f0f67f-4d94-47a7-8afd-3c0cc1a5ee7a" />
 <img width="286" height="304" alt="Image" src="https://github.com/user-attachments/assets/f88b2b30-097b-4937-b9b1-b052d691e97e" />
----
+
 
 # Architecture Overview
 
@@ -108,8 +108,6 @@ alerts/
 - Trigger: every 1 minute
 - Target: Step Functions State Machine
 
----
-
 ## Lambda Functions
 
 ### 1. Entities-Generator
@@ -121,8 +119,6 @@ Output:
 - customers.csv
 - accounts.csv
 
----
-
 ### 2. GenerateTransactions
 
 Input:
@@ -132,8 +128,6 @@ Input:
 Output:
 - transactions.csv
 
----
-
 ### 3. GenerateAlerts
 
 Input:
@@ -141,8 +135,6 @@ Input:
 
 Output:
 - alerts.csv
-
----
 
 ## Step Functions Workflow
 
@@ -155,7 +147,6 @@ GenerateAlerts
 ↓
 End
 ```
-
 ---
 
 # Deployment Steps
@@ -183,18 +174,18 @@ GenerateTransactions → GenerateAlerts
 
 ## 4. Create EventBridge Schedules
 - Entity Generator
-rate(5 minutes)
+    rate(5 minutes)
 
-Target:
+    Target:
 
-Entities-Generator Lambda
+    Entities-Generator Lambda
 
 - AML Pipeline
-rate(1 minute)
+    rate(1 minute)
 
-Target:
+    Target:
 
-Step Function State Machine
+    Step Function State Machine
 
 # Purpose
 
@@ -217,7 +208,7 @@ This module feeds into:
 - Dashboarding (PowerBI / QuickSight)
 
 # Example Generated Data
-- Customers
+Customers
 ```bash
 
 customer_id,name,country,risk_score
@@ -243,5 +234,4 @@ alert_id,txn_id,reason
 AL001,T001,High Value Transfer
 ```
 # Author
-
 Moavia Mahmood
