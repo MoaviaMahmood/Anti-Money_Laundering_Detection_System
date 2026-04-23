@@ -1,9 +1,11 @@
+import io
 import sys
 import uuid
 import random
 import json
 import csv
 import os
+import boto3
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 
@@ -11,20 +13,26 @@ from dataclasses import dataclass, asdict
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # ===========================================================
-# CONFIGURATION  — tweak these to resize the dataset
+# S3 CONFIG
+# ===========================================================
+BUCKET = "aml-fyp-stream-bucket-591950085395-eu-north-1-an"
+PREFIX = "aml-data/"
+
+s3 = boto3.client("s3")
+
+# ===========================================================
+# CONFIGURATION
 # ===========================================================
 random.seed(42)
 
 NUM_CUSTOMERS      = 300
-NUM_ACCOUNTS       = 450     # ~1.5 accounts per customer on average
+NUM_ACCOUNTS       = 450
 NUM_NORMAL_TXN     = 8_000
-SUSPICIOUS_RATIO   = 0.08    # 8% of total transactions will be suspicious
+SUSPICIOUS_RATIO   = 0.08
 
-REPORTING_THRESHOLD = 10_000  # USD — CTR filing threshold
+REPORTING_THRESHOLD = 10_000
 START_DATE          = datetime(2023, 1, 1)
 END_DATE            = datetime(2023, 12, 31)
-
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
 
 # ===========================================================
 # REFERENCE DATA
@@ -83,16 +91,16 @@ DEVICES    = ["mobile", "web", "atm", "pos"]
 # ===========================================================
 # DATA MODELS
 # ===========================================================
-
 @dataclass
 class Customer:
     customer_id:   str
-    name:          str
+    first_name:    str
+    last_name:     str
     country_code:  str
     city:          str
-    risk_rating:   str   # LOW / MEDIUM / HIGH
+    risk_rating:   str
     business_type: str
-    pep_flag:      bool  # Politically Exposed Person
+    pep_flag:      bool
     created_date:  str
     is_suspicious: bool = False
 
@@ -100,7 +108,7 @@ class Customer:
 class Account:
     account_id:    str
     customer_id:   str
-    account_type:  str   # CHECKING / SAVINGS / BUSINESS
+    account_type:  str
     currency:      str
     balance:       float
     opened_date:   str
@@ -129,17 +137,6 @@ class Transaction:
     is_suspicious:     bool  = False
     aml_pattern:       str   = "NONE"
     alert_score:       float = 0.0
-
-@dataclass
-class Alert:
-    alert_id:       str
-    transaction_id: str
-    customer_id:    str
-    alert_type:     str
-    alert_score:    float
-    created_at:     str
-    status:         str   # OPEN / REVIEWED / ESCALATED / CLOSED
-    notes:          str
 
 # ===========================================================
 # HELPERS
@@ -198,44 +195,11 @@ def other_account(accounts: list[Account], exclude_id: str) -> Account:
     filtered = [a for a in accounts if a.account_id != exclude_id]
     return random.choice(filtered)
 
-# ===========================================================
-# ENTITY GENERATORS
-# ===========================================================
-
-def generate_customers(n: int) -> list[Customer]:
-    customers = []
-    for _ in range(n):
-        city, cc = rand_location()
-        btype    = random.choice(BUSINESS_TYPES)
-        pep      = random.random() < 0.05
-        customers.append(Customer(
-            customer_id   = "C-" + uid(),
-            name          = rand_name(),
-            country_code  = cc,
-            city          = city,
-            risk_rating   = compute_risk_rating(cc, btype, pep),
-            business_type = btype,
-            pep_flag      = pep,
-            created_date  = fmt(rand_date(datetime(2015, 1, 1), datetime(2022, 12, 31))),
-        ))
-    return customers
-
-
-def generate_accounts(customers: list[Customer], n: int) -> list[Account]:
-    accounts = []
-    for _ in range(n):
-        cust = random.choice(customers)
-        accounts.append(Account(
-            account_id   = "ACC" + str(len(accounts) + 1).zfill(8),
-            customer_id  = cust.customer_id,
-            account_type = random.choice(["CHECKING", "SAVINGS", "BUSINESS"]),
-            currency     = random.choice(CURRENCIES),
-            balance      = round(random.uniform(500, 500_000), 2),
-            opened_date  = fmt(rand_date(datetime(2015, 1, 1), datetime(2023, 1, 1))),
-            country_code = cust.country_code,
-            city         = cust.city,
-        ))
-    return accounts
+def read_csv(name, cls):
+    obj = s3.get_object(Bucket=BUCKET, Key=PREFIX+name)
+    data = obj["Body"].read().decode()
+    reader = csv.DictReader(io.StringIO(data))
+    return [cls(**r) for r in reader]
 
 # ===========================================================
 # NORMAL TRANSACTION GENERATOR
@@ -469,178 +433,83 @@ def gen_impossible_travel(accounts, cust_map, n=25) -> list[Transaction]:
     return txns
 
 # ===========================================================
-# ALERT GENERATOR
+# S3 HELPERS
 # ===========================================================
 
-def generate_alerts(
-    transactions: list[Transaction],
-    acc_to_cust:  dict,
-) -> list[Alert]:
-    alerts = []
-    for txn in transactions:
-        if txn.alert_score >= 50 or txn.is_suspicious:
-            cust_id = acc_to_cust.get(txn.sender_account, "UNKNOWN")
-            status  = random.choices(
-                ["OPEN", "REVIEWED", "ESCALATED", "CLOSED"],
-                weights=[40, 25, 20, 15], k=1
-            )[0]
-            alerts.append(Alert(
-                alert_id       = "ALT-" + uid(),
-                transaction_id = txn.transaction_id,
-                customer_id    = cust_id,
-                alert_type     = txn.aml_pattern if txn.aml_pattern != "NONE" else "HIGH_RISK_TXN",
-                alert_score    = txn.alert_score,
-                created_at     = txn.timestamp,
-                status         = status,
-                notes          = (
-                    f"Auto alert | pattern={txn.aml_pattern} "
-                    f"| score={txn.alert_score} | type={txn.transaction_type}"
-                ),
-            ))
-    return alerts
-
-# ===========================================================
-# OUTPUT WRITERS
-# ===========================================================
-
-def write_csv(data: list, filename: str):
+def upload_csv(data, name, folder=""):
+   
     if not data:
+        print(f"No data to upload for {name}")
         return
-    path = os.path.join(OUTPUT_DIR, filename)
+
     rows = [asdict(d) for d in data]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-        writer.writeheader()
-        writer.writerows(rows)
-    size_kb = os.path.getsize(path) / 1024
-    print(f"  [CSV]  {filename:<35} {len(rows):>6} rows   {size_kb:>8.1f} KB")
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
+    writer.writeheader()
+    writer.writerows(rows)
 
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+    base, ext = os.path.splitext(name)
+    folder_path = f"{folder}/" if folder else ""
+    key = f"{PREFIX}{folder_path}{base}_{timestamp}{ext}"
 
-def write_json(data: list, filename: str):
-    path = os.path.join(OUTPUT_DIR, filename)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump([asdict(d) for d in data], f, indent=2)
-    size_kb = os.path.getsize(path) / 1024
-    print(f"  [JSON] {filename:<35} {len(data):>6} records {size_kb:>8.1f} KB")
+    s3.put_object(Bucket=BUCKET, Key=key, Body=buf.getvalue())
 
+def get_latest_s3_key(prefix, base_name):
+    """
+    Returns the latest S3 key that starts with base_name under the given prefix
+    """
+    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=prefix)
+    if "Contents" not in response:
+        raise FileNotFoundError(f"No objects found in s3://{BUCKET}/{prefix}")
 
-def write_labels(transactions: list[Transaction]):
-    """Standalone ML ground-truth label file."""
-    labels  = {
-        t.transaction_id: t.aml_pattern
-        for t in transactions if t.is_suspicious
-    }
-    summary: dict = {}
-    for v in labels.values():
-        summary[v] = summary.get(v, 0) + 1
-    output = {
-        "total_transactions": len(transactions),
-        "total_suspicious":   len(labels),
-        "suspicious_ratio":   round(len(labels) / len(transactions), 4),
-        "pattern_summary":    summary,
-        "labels":             labels,
-    }
-    path = os.path.join(OUTPUT_DIR, "suspicious_labels.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2)
-    size_kb = os.path.getsize(path) / 1024
-    print(f"  [JSON] {'suspicious_labels.json':<35} {len(labels):>6} labels  {size_kb:>8.1f} KB")
+    base = os.path.splitext(base_name)[0]  # "customers" from "customers.csv"
+    matching = [obj["Key"] for obj in response["Contents"] if os.path.basename(obj["Key"]).startswith(base)]
+    
+    if not matching:
+        raise FileNotFoundError(f"No matching objects for {base_name} in {prefix}")
 
+    # Pick the most recent by LastModified
+    latest = max(matching, key=lambda k: s3.head_object(Bucket=BUCKET, Key=k)["LastModified"])
+    return latest
 
-def print_summary(customers, accounts, transactions, alerts):
-    susp   = [t for t in transactions if t.is_suspicious]
-    counts: dict = {}
-    for t in susp:
-        counts[t.aml_pattern] = counts.get(t.aml_pattern, 0) + 1
-
-    print()
-    print("=" * 60)
-    print("     AML SYNTHETIC DATASET — FINAL SUMMARY")
-    print("=" * 60)
-    print(f"    Customers           : {len(customers):>6}")
-    print(f"        HIGH risk       : {sum(1 for c in customers if c.risk_rating=='HIGH'):>6}")
-    print(f"        PEP flagged     : {sum(1 for c in customers if c.pep_flag):>6}")
-    print(f"        Flagged susp.   : {sum(1 for c in customers if c.is_suspicious):>6}")
-    print(f"    Accounts            : {len(accounts):>6}")
-    print(f"    Transactions        : {len(transactions):>6}")
-    print(f"        Normal          : {len(transactions)-len(susp):>6}")
-    print(f"        Suspicious      : {len(susp):>6}  ({100*len(susp)/len(transactions):.1f}%)")
-    print(f"    Alerts              : {len(alerts):>6}")
-    print()
-    print("Pattern breakdown:")
-    for pat, cnt in sorted(counts.items(), key=lambda x: -x[1]):
-        bar = "#" * max(1, cnt // 8)
-        print(f"    {pat:<25} {cnt:>4}  {bar}")
-    print("=" * 60)
+def read_latest_csv(base_name, cls, folder=""):
+    folder_path = f"{folder}/" if folder else ""
+    key = get_latest_s3_key(f"{PREFIX}{folder_path}", base_name)
+    obj = s3.get_object(Bucket=BUCKET, Key=key)
+    data = obj["Body"].read().decode()
+    reader = csv.DictReader(io.StringIO(data))
+    return [cls(**r) for r in reader]
 
 # ===========================================================
-# MAIN
+# LAMBDA HANDLER
 # ===========================================================
 
-def main():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    print(f"\n[+] AML Synthetic Data Generator")
-    print(f"    Output directory : {OUTPUT_DIR}")
-    print(f"    Date range       : {START_DATE.date()} -> {END_DATE.date()}")
-    print(f"    Customers        : {NUM_CUSTOMERS}")
-    print(f"    Accounts         : {NUM_ACCOUNTS}")
-    print(f"    Normal txns      : {NUM_NORMAL_TXN}")
-    print(f"    Suspicious ratio : {SUSPICIOUS_RATIO*100:.0f}%\n")
+def lambda_handler(event, context):
 
-    # ── Entities ──────────────────────────────────────────
-    print("[1/4] Generating customers and accounts...")
-    customers = generate_customers(NUM_CUSTOMERS)
-    accounts  = generate_accounts(customers, NUM_ACCOUNTS)
+    customers = read_latest_csv("customers.csv", Customer, folder="customers")
+    accounts  = read_latest_csv("accounts.csv", Account, folder="accounts")
+
     cust_map  = {c.customer_id: c for c in customers}
-    acc_to_cust = {a.account_id: a.customer_id for a in accounts}
 
-    # ── Normal transactions ────────────────────────────────
-    print("[2/4] Generating normal transactions...")
     normal_txns = [
         build_normal_transaction(accounts, cust_map)
         for _ in range(NUM_NORMAL_TXN)
     ]
 
-    # ── Suspicious / AML patterns ─────────────────────────
-    print("[3/4] Injecting AML patterns...")
-    suspicious_txns: list[Transaction] = []
-    suspicious_txns += gen_structuring(accounts, cust_map,           n_clusters=40)
-    suspicious_txns += gen_layering(accounts, cust_map,               n_chains=25)
-    suspicious_txns += gen_round_trip(accounts, cust_map,             n=30)
-    suspicious_txns += gen_shell_company(accounts, customers, cust_map, n=25)
-    suspicious_txns += gen_trade_based(accounts, cust_map,            n=25)
-    suspicious_txns += gen_large_rapid(accounts, cust_map,            n=30)
-    suspicious_txns += gen_high_velocity(accounts, cust_map,          n_bursts=25)
-    suspicious_txns += gen_impossible_travel(accounts, cust_map,      n=25)
+    suspicious_txns = []
+    suspicious_txns += gen_structuring(accounts, cust_map,40)
+    suspicious_txns += gen_layering(accounts, cust_map,25)
+    suspicious_txns += gen_round_trip(accounts, cust_map,30)
+    suspicious_txns += gen_shell_company(accounts, customers, cust_map,25)
+    suspicious_txns += gen_trade_based(accounts, cust_map,25)
+    suspicious_txns += gen_large_rapid(accounts, cust_map,30)
+    suspicious_txns += gen_high_velocity(accounts, cust_map,25)
+    suspicious_txns += gen_impossible_travel(accounts, cust_map,25)
 
     all_txns = normal_txns + suspicious_txns
     random.shuffle(all_txns)
 
-    # Trim/pad suspicious count to match SUSPICIOUS_RATIO exactly
-    target_susp = int(len(all_txns) * SUSPICIOUS_RATIO)
-    actual_susp = sum(1 for t in all_txns if t.is_suspicious)
-    print(f"    Suspicious transactions generated: {actual_susp}")
+    upload_csv(all_txns, "transactions.csv", folder="transactions")
 
-    # ── Alerts ─────────────────────────────────────────────
-    print("[4/4] Generating alerts...")
-    alerts = generate_alerts(all_txns, acc_to_cust)
-
-    # ── Write outputs ──────────────────────────────────────
-    print(f"\n[+] Writing output files to {OUTPUT_DIR}\n")
-    write_csv(customers,  "customers.csv")
-    write_csv(accounts,   "accounts.csv")
-    write_csv(all_txns,   "transactions.csv")
-    write_csv(alerts,     "alerts.csv")
-    print()
-    write_json(customers, "customers.json")
-    write_json(accounts,  "accounts.json")
-    write_json(all_txns,  "transactions.json")
-    write_json(alerts,    "alerts.json")
-    write_labels(all_txns)
-
-    print_summary(customers, accounts, all_txns, alerts)
-    print(f"\n[OK] Done. All files saved to:\n  {OUTPUT_DIR}\n")
-
-
-if __name__ == "__main__":
-    main()
+    return {"status": "transactions generated", "total_txns": len(all_txns)}
