@@ -1,196 +1,151 @@
-# SENTINEL – AML Monitoring Dashboard (Frontend)
+# frontend — SENTINEL Dashboard
 
-A modern, real-time Anti-Money Laundering (AML) monitoring dashboard built with React.
-SENTINEL simulates a bank-grade transaction monitoring interface with live alerts, risk scoring, KPIs, and entity tracking.
+The user-facing console for the AML pipeline. A React + TypeScript single-page application styled as a "command center" for compliance analysts.
 
-<img width="1587" height="994" alt="Image" src="https://github.com/user-attachments/assets/4c479e47-5486-4fe7-a02f-8eb2dfea51c7" />
+## Tech
 
-## Overview
+- React 19
+- TypeScript
+- Vite (dev server + build)
+- No chart library — visualizations are hand-rendered SVG and HTML/CSS for full theme control
+- IBM Plex Mono, Syne, Orbitron fonts (loaded from Google Fonts)
 
-SENTINEL is a frontend simulation of a hybrid AML transaction monitoring system.
-It provides:
+## Run it
 
-- Real-time KPI metrics
-- Live alert notifications
-- Transaction risk scoring
-- High-risk jurisdiction monitoring
-- Rule-trigger analytics
-- Entity-level risk tracking
-- Toast notifications & live feed ticker
-- CSV export functionality
-
-This project is designed for:
-
-- Final Year Projects
-- AML / FinTech system prototypes
-- Data engineering & ML integration demos
-- Portfolio showcase
-
-## Key Features
-### Dashboard Overview
-
-- Live KPI cards (Risk Score, Alerts, etc.)
-- Animated sparklines
-- Real-time simulation updates
-
-### Alerts Panel
-
-- Slide-in live alerts panel
-- Risk-level badges (Critical, High, Medium, Cleared)
-- Mobile responsive
-
-### Transactions Table
-
-- Risk filtering (All, Critical, High, Medium, Cleared)
-- Search (Transaction ID, Entity, Rule)
-- Column sorting
-- CSV export
-- Real-time updates
-- Modal review system
-
-### Risk Intelligence Panels
-
-- High-Risk Jurisdictions
-- Rule Trigger Distribution
-- Top Risk Entities
-
- ### Fully Responsive
-
-- Mobile sidebar
-- Adaptive grid layout
-- Sticky header & table headers
-
-## Tech Stack
-
-- React (Functional Components + Hooks)
-- Vite
-- Pure inline styling (No external UI library)
-- Custom animation keyframes
-- Canvas-based Sparkline charts
-
-## Project Structure
-``` bash
-frontend/
-│
-├── node_modules/
-├── public/
-│   └── vite.svg
-│
-├── src/
-│   ├── assets/
-│   │   └── react.svg
-│   │
-│   ├── components/
-│   │   ├── AlertsPanel.jsx
-│   │   ├── Badge.jsx
-│   │   ├── BarChart.jsx
-│   │   ├── BottomPanel.jsx
-│   │   ├── GlobalStyles.jsx
-│   │   ├── KpiCard.jsx
-│   │   ├── LiveTicker.jsx
-│   │   ├── Modal.jsx
-│   │   ├── RiskEntitiesPanel.jsx
-│   │   ├── Sidebar.jsx
-│   │   ├── Sparkline.jsx
-│   │   ├── Toast.jsx
-│   │   ├── Topbar.jsx
-│   │   └── TransactionsTable.jsx
-│   │
-│   ├── constants/
-│   │   ├── data.js
-│   │   └── theme.js
-│   │
-│   ├── hooks/
-│   │   ├── useClock.js
-│   │   ├── useLiveSimulation.js
-│   │   ├── useToast.js
-│   │   └── useWindowWidth.js
-│   │
-│   ├── App.css
-│   ├── App.tsx
-│   ├── index.css
-│   └── main.tsx
-│
-├── .gitignore
-├── eslint.config.js
-├── index.html
-├── package-lock.json
-├── package.json
-├── README.md
-├── tsconfig.app.json
-├── tsconfig.json
-├── tsconfig.node.json
-└── vite.config.ts
-```
-
-## Installation
-### Clone the repository
-``` bash
-git clone https://github.com/yourusername/sentinel-aml-frontend.git
-cd sentinel-aml-frontend
-```
-### Install dependencies
-``` bash
+```bash
+cd aml-system/frontend
 npm install
-```
-### Run development server
-``` bash
 npm run dev
 ```
-App will run at:
-``` bash
-http://localhost:5173
+
+Opens at `http://localhost:5173`. Requires the backend to be running at `http://localhost:8000` — see [`../backend/README.md`](../../backend/README.md).
+
+## Project structure
+
 ```
-## Export Functionality
-
-Transactions can be exported as CSV:
-``` bash
-Transaction ID,Entity,Amount,Type,Rule,Risk,Time
+frontend/
+├── src/
+│   ├── App.tsx                   Root component, routing, layout
+│   ├── main.tsx                  Vite entry point
+│   ├── components/               Visual building blocks (one file each)
+│   │   ├── Topbar.jsx
+│   │   ├── Sidebar.jsx
+│   │   ├── LiveTicker.jsx        Scrolling alert+tx ticker
+│   │   ├── KpiCard.jsx           KPI tile with sparkline
+│   │   ├── BarChart.jsx          Custom SVG bar chart for AML pattern breakdown
+│   │   ├── RiskEntitiesPanel.jsx Top suspicious entities list
+│   │   ├── TransactionsTable.jsx Sortable, filterable transaction table
+│   │   ├── AlertsPanel.jsx       Slide-in alerts drawer
+│   │   ├── BottomPanels.jsx      Geo + Rules side-by-side
+│   │   ├── Modal.jsx             Detail modal (entity / transaction / KPI)
+│   │   ├── Toast.jsx             Bottom-right notifications
+│   │   ├── Sparkline.jsx
+│   │   ├── Badge.jsx
+│   │   └── GlobalStyles.jsx      Font loader + global CSS
+│   ├── hooks/
+│   │   ├── useLiveData.js        Polls backend every 30s, exposes all data
+│   │   ├── useClock.js           UTC clock for the topbar
+│   │   ├── useToasts.js          Toast notification state
+│   │   └── useWindowWidth.js     Mobile/desktop detection
+│   ├── constants/
+│   │   ├── theme.js              Color palette + spacing tokens
+│   │   └── data.js               Static seed data (legacy mock — kept for ticker labels, nav structure)
+│   └── assets/                   Static images
+├── public/                       Public static files
+├── index.html                    HTML shell
+├── vite.config.ts                Vite configuration
+├── tsconfig.json                 TypeScript configuration
+└── package.json                  Dependencies + scripts
 ```
-File name:
-``` bash
-sentinel_transactions.csv
+
+## Theme
+
+The cyan/black/pink Sentinel palette lives in `src/constants/theme.js`:
+
+```javascript
+export const C = {
+  bg: "#080c14",
+  surface: "#0d1117",
+  surface2: "#131924",
+  border: "rgba(255,255,255,.07)",
+  text: "#e8eaf0",
+  muted: "#5a6378",
+  accent: "#00e5ff",     // primary cyan
+  accent2: "#ff3b6b",    // alert pink/red
+  accent3: "#f5c518",    // warning amber
+  green: "#00d68f",
+  ...
+};
 ```
-## Risk Levels
-``` bash
-| Level    | Meaning                     |
-| -------- | --------------------------- |
-| Critical | Immediate SAR required      |
-| High     | High probability suspicious |
-| Medium   | Needs review                |
-| Cleared  | Reviewed and approved       |
+
+To rebrand, change colors here once — they propagate everywhere.
+
+## Data flow
+
+```
+Backend (FastAPI)               useLiveData hook                Components
+─────────────────               ────────────────                ──────────
+GET /api/kpis                   Polls all 6 endpoints           KpiCard × 4
+GET /api/transactions/flagged   in parallel every 30s           TransactionsTable
+GET /api/alerts/live            via Promise.all                 AlertsPanel, LiveTicker
+GET /api/entities/top-risk      Reshapes data to UI shapes      RiskEntitiesPanel
+GET /api/alerts/breakdown       Triggers toasts on new          BarChart, RulesPanel
+GET /api/geo/high-risk          critical alerts                 GeoPanel
 ```
 
-## Design Philosophy
+All components are pure — they receive props from `App.tsx` and never call the backend themselves. To add new data:
 
-- Dark cyber-fintech aesthetic
-- Neon accent highlights
-- High contrast risk visualization
-- Minimal external dependencies
-- Bank-grade UI simulation feel
+1. Add a new endpoint in `backend/main.py`
+2. Add a `fetch()` call in `useLiveData.js`
+3. Pass the result through `App.tsx` to the consuming component
 
-## Future Improvements
+## Routing
 
-- Backend API integration (FastAPI / Node)
-- ML risk scoring model integration
-- WebSocket real-time streaming
-- Database persistence
-- Role-based access control
-- Advanced analytics charts (Recharts / D3)
+The dashboard uses simple state-based navigation (no React Router) because there are no URL-driven concerns. `activeNav` in `App.tsx` controls which view renders:
 
-# Author
+- `Overview` — full dashboard (default)
+- `Alerts` — list view of recent alerts
+- `Transactions` — full transactions table
+- `Entities` — risk entities list
+- Anything else (`Network Graph`, `Case Manager`, ...) — "Future work" placeholder
 
-Moavia Mahmood
-Software Engineering Student
-Transitioning into Machine Learning & Data Engineering
+Adding a new view is one conditional block in `App.tsx`.
 
-# License
+## Build for production
 
-This project is for academic and demonstration purposes.
-<img width="1587" height="994" alt="Image" src="https://github.com/user-attachments/assets/4c479e47-5486-4fe7-a02f-8eb2dfea51c7" />
+```bash
+npm run build
+```
 
-<img width="1546" height="970" alt="Image" src="https://github.com/user-attachments/assets/f4b2fa97-6a61-457f-ac0c-dc4aa67249d7" />
+Outputs to `dist/`. Static files; deploy to S3+CloudFront, Vercel, Netlify, or any static host. The backend URL is hardcoded in `useLiveData.js` (`http://localhost:8000`) — change to your production backend URL before building.
 
-<img width="690" height="993" alt="Image" src="https://github.com/user-attachments/assets/eaabc007-fbdd-48c5-98b7-166add1c21c9" />
+## Known limitations
 
-<img width="838" height="972" alt="Image" src="https://github.com/user-attachments/assets/5694fc87-5461-4556-9146-2b6e43ca084a" />
+- **Mobile sidebar navigation** — the sidebar opens but tap events don't propagate to the routing layer; under investigation. Desktop is the primary target environment.
+- **KPI sparklines** — display flat lines until a time-series endpoint is added to the backend.
+- **No URL routing** — refreshing the page returns to Overview. A real production app would use React Router and URL params.
+- **No auth** — for the FYP scope, the dashboard runs locally and trusts AWS IAM at the backend layer.
+
+## Component patterns
+
+If you want to add or modify a component, the convention is:
+
+```jsx
+import { C } from "../constants/theme";
+
+export function NewComponent({ data = [], onSomething }) {
+    if (data.length === 0) {
+        return <div style={{ padding: 16, color: C.muted }}>Loading...</div>;
+    }
+    return (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6 }}>
+            {/* ... */}
+        </div>
+    );
+}
+```
+
+- Always use the theme tokens, never hex literals
+- Always handle the empty/loading state
+- Always destructure with a default for array props
+- Style props inline (no CSS modules) — keeps theming centralized
