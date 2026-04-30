@@ -66,16 +66,15 @@ Upload the source code as a ZIP or paste directly into the console.
 
 ### 5. EventBridge schedules
 
-Two scheduled rules:
+Scheduled rules:
 
 | Rule name | Schedule | Target |
 |---|---|---|
-| `Entity-Generator` | `rate(5 minutes)` | `Entities-Generator` Lambda |
 | `AML-pipeline-scheduler` | `rate(1 minute)` | `aml-pipeline` Step Function |
 
 ### 6. Step Functions
 
-Create a state machine called `aml-pipeline` from the JSON definition in `pipelines/`. It runs `GenerateTransactions` then `GenerateAlerts` sequentially.
+Create a state machine called `aml-pipeline` from the JSON definition in `pipelines/`. It runs `GenerateEntities` then `GenerateTransactions` then `GenerateAlerts` sequentially.
 
 ### 7. Kinesis trigger
 
