@@ -1,0 +1,2 @@
+# AWS SDK (provided by Lambda runtime, included here for local testing)
+boto3>=1.35.0

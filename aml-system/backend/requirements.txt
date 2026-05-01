@@ -1,0 +1,13 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# AWS Athena client
+pyathena==3.9.0
+boto3==1.35.0
+
+# Data handling
+pandas==2.2.2
+
+# Configuration
+python-dotenv==1.0.1
